@@ -45,9 +45,18 @@ def _base_cmd() -> list[str]:
 def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
     clean = _clean_url(url)
     output_path = AUDIO_DIR / f"{video_id}.wav"
+    meta_path = AUDIO_DIR / f"{video_id}.meta.json"
 
-    # Get metadata
-    meta = _get_metadata(clean)
+    # Use cached metadata if available
+    if meta_path.exists():
+        with open(meta_path) as f:
+            meta = json.load(f)
+    else:
+        meta = _get_metadata(clean)
+        # Cache metadata
+        AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+        with open(meta_path, "w") as f:
+            json.dump(meta, f)
 
     if output_path.exists():
         return output_path, meta
