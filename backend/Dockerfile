@@ -1,6 +1,10 @@
 FROM python:3.11-slim
 
-# Install system dependencies (gcc needed for madmom C extensions)
+# Install system dependencies
+# - gcc/g++: needed for madmom C extensions
+# - ffmpeg: audio processing
+# - nodejs: JS runtime for yt-dlp (YouTube extraction)
+# - libsndfile1/libfftw3: audio libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
@@ -8,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     libsndfile1 \
     libfftw3-dev \
+    nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
