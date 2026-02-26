@@ -99,6 +99,59 @@ class YouTubeBlockedError(Exception):
     pass
 
 
+def download_audio_as_mp3(url: str, video_id: str) -> tuple[Path, str]:
+    """Download YouTube audio as MP3 for user download. Returns (path, title)."""
+    clean = _clean_url(url)
+    output_path = AUDIO_DIR / f"{video_id}.mp3"
+    meta_path = AUDIO_DIR / f"{video_id}.meta.json"
+
+    # Get metadata (for title and duration check)
+    if meta_path.exists():
+        with open(meta_path) as f:
+            meta = json.load(f)
+    else:
+        meta = _get_metadata(clean)
+        AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+        with open(meta_path, "w") as f:
+            json.dump(meta, f)
+
+    title = meta.get("title", "Unknown")
+
+    if output_path.exists():
+        return output_path, title
+
+    AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+
+    if meta.get("duration", 0) > MAX_DURATION_SECONDS:
+        raise ValueError(f"影片太長（最長 {MAX_DURATION_SECONDS} 秒）")
+
+    cmd = _base_cmd() + [
+        "-x",
+        "--audio-format", "mp3",
+        "--audio-quality", "0",
+        "-o", str(output_path),
+        clean,
+    ]
+
+    logger.info(f"Downloading MP3: {clean}")
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        logger.error(f"yt-dlp stderr: {result.stderr}")
+        stderr = result.stderr
+        if "Sign in to confirm" in stderr or "bot" in stderr.lower():
+            raise YouTubeBlockedError(
+                "YouTube 封鎖了伺服器的下載請求。"
+                "雲端伺服器無法下載 YouTube 影片，請在本地電腦使用此功能。"
+            )
+        raise RuntimeError(f"下載失敗: {stderr[-500:]}")
+
+    if not output_path.exists():
+        raise FileNotFoundError("下載完成但找不到輸出檔案")
+
+    return output_path, title
+
+
 def _get_metadata(url: str) -> dict:
     """Extract video metadata using yt-dlp CLI."""
     cmd = _base_cmd() + ["--dump-json", "--no-download", url]

@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 
 from app.config import SEPARATED_DIR, ALLOWED_HOSTS
-from app.routers import analyze, health
+from app.routers import analyze, download, health
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,6 +21,7 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
+app.include_router(download.router, prefix="/api")
 
 # Serve separated audio files
 SEPARATED_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,5 @@
 import UrlInput from "@/components/UrlInput";
+import YouTubeDownloader from "@/components/YouTubeDownloader";
 
 export default function HomePage() {
   return (
@@ -23,8 +24,21 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* URL Input */}
+        {/* URL Input + Upload */}
         <UrlInput />
+
+        {/* YouTube Downloader */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-700" />
+            <span className="text-gray-500 text-sm">YouTube 音檔下載</span>
+            <div className="flex-1 h-px bg-gray-700" />
+          </div>
+          <p className="text-center text-gray-500 text-xs">
+            貼上 YouTube 連結，即可下載 MP3 音檔到本地電腦
+          </p>
+          <YouTubeDownloader />
+        </div>
 
         {/* Demo link */}
         <div className="text-center">
