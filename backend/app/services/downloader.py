@@ -17,6 +17,16 @@ def _clean_url(url: str) -> str:
     return url
 
 
+def _base_opts() -> dict:
+    """Base yt-dlp options that bypass YouTube bot detection."""
+    return {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "extractor_args": {"youtube": {"player_client": ["ios", "web"]}},
+    }
+
+
 def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
     clean = _clean_url(url)
     output_path = AUDIO_DIR / f"{video_id}.wav"
@@ -34,16 +44,14 @@ def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
 
     # Download as WAV using yt-dlp Python API
     ydl_opts = {
+        **_base_opts(),
         "format": "bestaudio/best",
         "outtmpl": str(AUDIO_DIR / f"{video_id}.%(ext)s"),
-        "noplaylist": True,
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "wav",
             "preferredquality": "0",
         }],
-        "quiet": True,
-        "no_warnings": True,
     }
 
     logger.info(f"Downloading audio: {clean}")
@@ -67,11 +75,7 @@ def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
 
 def _get_metadata(url: str) -> dict:
     """Extract video metadata using yt-dlp Python API."""
-    ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-    }
+    ydl_opts = _base_opts()
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
