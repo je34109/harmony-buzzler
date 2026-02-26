@@ -45,6 +45,7 @@ function AnalyzeContent() {
 
   const [stage, setStage] = useState<Stage>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isYouTubeBlocked, setIsYouTubeBlocked] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [jianpuNotes, setJianpuNotes] = useState<JianpuNote[]>([]);
   const [chordEvents, setChordEvents] = useState<ChordEvent[]>([]);
@@ -149,7 +150,13 @@ function AnalyzeContent() {
       setStage("done");
     } catch (err) {
       console.error("Analysis failed:", err);
-      setErrorMsg(err instanceof Error ? err.message : "分析過程中發生錯誤");
+      const msg = err instanceof Error ? err.message : "分析過程中發生錯誤";
+      const blocked = msg.includes("封鎖") || msg.includes("bot") || msg.includes("Sign in");
+      setIsYouTubeBlocked(blocked);
+      setErrorMsg(blocked
+        ? "YouTube 封鎖了雲端伺服器的下載請求"
+        : msg
+      );
       setStage("error");
     }
   }, [url, mode, uploadTitle]);
@@ -242,16 +249,40 @@ function AnalyzeContent() {
             />
 
             {stage === "error" && (
-              <div className="text-center pt-4">
-                <button
-                  onClick={handleRetry}
-                  className="px-6 py-2.5 rounded-lg font-medium text-sm
-                             bg-gradient-to-r from-amber-500 to-pink-500
-                             hover:from-amber-400 hover:to-pink-400
-                             text-white transition-all"
-                >
-                  重試
-                </button>
+              <div className="text-center pt-4 space-y-4">
+                {isYouTubeBlocked && (
+                  <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-5 max-w-md mx-auto space-y-3">
+                    <p className="text-gray-300 text-sm leading-relaxed">
+                      YouTube 會封鎖來自雲端伺服器的下載請求。
+                      請改用<strong className="text-pink-400">上傳音檔</strong>功能：
+                    </p>
+                    <ol className="text-gray-400 text-sm text-left space-y-1 list-decimal list-inside">
+                      <li>先從 YouTube 下載歌曲音檔到電腦</li>
+                      <li>回到首頁，使用「上傳音檔」區域上傳</li>
+                      <li>系統會自動分析並生成簡譜</li>
+                    </ol>
+                    <button
+                      onClick={() => router.push("/")}
+                      className="w-full py-2.5 rounded-lg font-medium text-sm
+                                 bg-gradient-to-r from-amber-500 to-pink-500
+                                 hover:from-amber-400 hover:to-pink-400
+                                 text-white transition-all"
+                    >
+                      返回首頁上傳音檔
+                    </button>
+                  </div>
+                )}
+                {!isYouTubeBlocked && (
+                  <button
+                    onClick={handleRetry}
+                    className="px-6 py-2.5 rounded-lg font-medium text-sm
+                               bg-gradient-to-r from-amber-500 to-pink-500
+                               hover:from-amber-400 hover:to-pink-400
+                               text-white transition-all"
+                  >
+                    重試
+                  </button>
+                )}
               </div>
             )}
           </div>

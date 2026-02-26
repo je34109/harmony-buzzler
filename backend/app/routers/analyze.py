@@ -8,6 +8,7 @@ from pathlib import Path
 
 from app.config import AUDIO_DIR
 from app.services.pipeline import run_pipeline, run_pipeline_from_file
+from app.services.downloader import YouTubeBlockedError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,6 +43,8 @@ async def analyze(request: AnalyzeRequest):
         video_id = extract_video_id(request.url)
         result = await run_pipeline(request.url, video_id)
         return result
+    except YouTubeBlockedError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

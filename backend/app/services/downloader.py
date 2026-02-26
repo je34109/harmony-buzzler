@@ -80,12 +80,23 @@ def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
 
     if result.returncode != 0:
         logger.error(f"yt-dlp stderr: {result.stderr}")
-        raise RuntimeError(f"yt-dlp download failed: {result.stderr[-500:]}")
+        stderr = result.stderr
+        if "Sign in to confirm" in stderr or "bot" in stderr.lower():
+            raise YouTubeBlockedError(
+                "YouTube 封鎖了伺服器的下載請求。請改用「上傳音檔」功能："
+                "先在本地下載歌曲音檔，再上傳到本站分析。"
+            )
+        raise RuntimeError(f"yt-dlp download failed: {stderr[-500:]}")
 
     if not output_path.exists():
         raise FileNotFoundError(f"Download completed but output not found at {output_path}")
 
     return output_path, meta
+
+
+class YouTubeBlockedError(Exception):
+    """Raised when YouTube blocks the download (bot detection)."""
+    pass
 
 
 def _get_metadata(url: str) -> dict:
@@ -96,7 +107,13 @@ def _get_metadata(url: str) -> dict:
 
     if result.returncode != 0:
         logger.error(f"yt-dlp metadata stderr: {result.stderr}")
-        raise RuntimeError(f"yt-dlp metadata failed: {result.stderr[-500:]}")
+        stderr = result.stderr
+        if "Sign in to confirm" in stderr or "bot" in stderr.lower():
+            raise YouTubeBlockedError(
+                "YouTube 封鎖了伺服器的下載請求。請改用「上傳音檔」功能："
+                "先在本地下載歌曲音檔，再上傳到本站分析。"
+            )
+        raise RuntimeError(f"yt-dlp metadata failed: {stderr[-500:]}")
 
     info = json.loads(result.stdout)
     return {
