@@ -1,5 +1,8 @@
 import re
+import os
+import base64
 import logging
+import tempfile
 from pathlib import Path
 
 import yt_dlp
@@ -7,6 +10,20 @@ import yt_dlp
 from app.config import AUDIO_DIR, MAX_DURATION_SECONDS
 
 logger = logging.getLogger(__name__)
+
+# Decode YouTube cookies from env (set as HF Space secret)
+_COOKIES_PATH: str | None = None
+_cookies_b64 = os.environ.get("YT_COOKIES_B64")
+if _cookies_b64:
+    try:
+        cookies_data = base64.b64decode(_cookies_b64).decode()
+        tf = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+        tf.write(cookies_data)
+        tf.close()
+        _COOKIES_PATH = tf.name
+        logger.info(f"YouTube cookies loaded ({len(cookies_data)} bytes)")
+    except Exception as e:
+        logger.warning(f"Failed to decode YT_COOKIES_B64: {e}")
 
 
 def _clean_url(url: str) -> str:
@@ -18,12 +35,15 @@ def _clean_url(url: str) -> str:
 
 
 def _base_opts() -> dict:
-    """Base yt-dlp options with JS signature solving support."""
-    return {
+    """Base yt-dlp options with JS signature solving + cookies."""
+    opts: dict = {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
     }
+    if _COOKIES_PATH:
+        opts["cookiefile"] = _COOKIES_PATH
+    return opts
 
 
 def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
