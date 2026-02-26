@@ -40,6 +40,8 @@ def _base_opts() -> dict:
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        # Enable remote EJS components for YouTube signature solving
+        "extractor_args": {"youtube": {"player_client": ["web"]}},
     }
     if _COOKIES_PATH:
         opts["cookiefile"] = _COOKIES_PATH

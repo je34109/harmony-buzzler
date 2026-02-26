@@ -34,8 +34,11 @@ RUN apt-get purge -y --auto-remove gcc g++ && \
 # Copy application
 COPY app/ app/
 
-# Create startup script (set Google DNS at runtime)
-RUN printf '#!/bin/bash\necho "nameserver 8.8.8.8" > /etc/resolv.conf\necho "nameserver 8.8.4.4" >> /etc/resolv.conf\nexec uvicorn app.main:app --host 0.0.0.0 --port 7860\n' > /app/start.sh && \
+# Verify deno is available
+RUN deno --version
+
+# Create startup script (set Google DNS + ensure deno PATH at runtime)
+RUN printf '#!/bin/bash\necho "nameserver 8.8.8.8" > /etc/resolv.conf\necho "nameserver 8.8.4.4" >> /etc/resolv.conf\nexport PATH="/root/.deno/bin:$PATH"\nexport DENO_DIR="/root/.deno"\nexec uvicorn app.main:app --host 0.0.0.0 --port 7860\n' > /app/start.sh && \
     chmod +x /app/start.sh
 
 EXPOSE 7860
