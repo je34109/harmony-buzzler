@@ -61,3 +61,34 @@ async def run_pipeline(url: str, video_id: str) -> dict:
         json.dump(result, f)
 
     return result
+
+
+async def run_pipeline_from_file(audio_path: Path, job_id: str, metadata: dict) -> dict:
+    """Run analysis pipeline on a pre-existing audio file (uploaded by user)."""
+    # Step 2: Separate vocals
+    logger.info(f"Separating vocals for {job_id}")
+    vocals_path = await asyncio.to_thread(separate_vocals, audio_path, job_id)
+
+    # Step 3: Detect key
+    logger.info(f"Detecting key for {job_id}")
+    key_result = await asyncio.to_thread(detect_key, vocals_path)
+
+    # Step 4: Detect tempo
+    logger.info(f"Detecting tempo for {job_id}")
+    tempo_result = await asyncio.to_thread(detect_tempo, audio_path)
+
+    # Step 5: Detect chords
+    logger.info(f"Detecting chords for {job_id}")
+    chord_result = await asyncio.to_thread(detect_chords, audio_path)
+
+    return {
+        "metadata": metadata,
+        "analysis": {
+            "key": key_result,
+            "tempo": tempo_result,
+            "chords": chord_result,
+        },
+        "audio": {
+            "vocalsUrl": f"/api/audio/{job_id}/vocals.wav",
+        },
+    }

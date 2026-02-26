@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { analyzeUrl, getAudioUrl } from "@/lib/api";
+import { analyzeUrl, analyzeUpload, getAudioUrl } from "@/lib/api";
+import { consumePendingFile } from "@/lib/fileStore";
 import { extractMelody } from "@/lib/basicPitchWorker";
 import { midiToJianpu, mapChordsToJianpu } from "@/lib/midiToJianpu";
 import type { MidiNote } from "@/lib/midiToJianpu";
@@ -39,6 +40,8 @@ function AnalyzeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const url = searchParams.get("url") || "";
+  const mode = searchParams.get("mode") || "";
+  const uploadTitle = searchParams.get("title") || "Uploaded Audio";
 
   const [stage, setStage] = useState<Stage>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -53,9 +56,10 @@ function AnalyzeContent() {
   const hasStarted = useRef(false);
 
   const runAnalysis = useCallback(async () => {
-    if (!url) return;
-
+    const isUpload = mode === "upload";
     const isDemo = url === "demo";
+
+    if (!url && !isUpload) return;
 
     try {
       let result: AnalysisResult;
@@ -88,8 +92,23 @@ function AnalyzeContent() {
           },
           audio: { vocalsUrl: "" },
         };
+      } else if (isUpload) {
+        // Upload mode: send file to backend
+        const pending = consumePendingFile();
+        if (!pending) {
+          throw new Error("找不到上傳的檔案，請返回首頁重新上傳");
+        }
+
+        setStage("downloading");
+        setStage("separating");
+        result = await analyzeUpload(pending.file, pending.title);
+
+        setStage("detecting-key");
+        await new Promise((r) => setTimeout(r, 400));
+        setStage("detecting-chords");
+        await new Promise((r) => setTimeout(r, 400));
       } else {
-        // Real mode: call backend
+        // URL mode: call backend with YouTube URL
         setStage("downloading");
         setStage("separating");
         result = await analyzeUrl(url);
@@ -105,7 +124,7 @@ function AnalyzeContent() {
       setKeyRootMidi(result.analysis.key.rootMidi);
       setKeyScale(result.analysis.key.scale);
 
-      // Step 5: Extract melody using basic-pitch (mock for now)
+      // Step 5: Extract melody using basic-pitch
       setStage("extracting-melody");
       const vocalsUrl = isDemo ? "" : getAudioUrl(result.audio.vocalsUrl);
       const extractedMidi = await extractMelody(vocalsUrl);
@@ -133,17 +152,17 @@ function AnalyzeContent() {
       setErrorMsg(err instanceof Error ? err.message : "分析過程中發生錯誤");
       setStage("error");
     }
-  }, [url]);
+  }, [url, mode, uploadTitle]);
 
   useEffect(() => {
-    if (!url) {
+    if (!url && mode !== "upload") {
       router.push("/");
       return;
     }
     if (hasStarted.current) return;
     hasStarted.current = true;
     runAnalysis();
-  }, [url, router, runAnalysis]);
+  }, [url, mode, router, runAnalysis]);
 
   const handleRetry = useCallback(() => {
     setStage("idle");
@@ -210,9 +229,9 @@ function AnalyzeContent() {
               <h2 className="text-xl font-semibold text-white">
                 {stage === "error" ? "分析失敗" : "分析處理中"}
               </h2>
-              {url && (
+              {(url || mode === "upload") && (
                 <p className="text-gray-500 text-sm truncate max-w-md mx-auto">
-                  {decodeURIComponent(url)}
+                  {mode === "upload" ? uploadTitle : decodeURIComponent(url)}
                 </p>
               )}
             </div>

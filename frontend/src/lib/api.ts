@@ -23,6 +23,22 @@ export async function analyzeUrl(url: string): Promise<AnalysisResult> {
   return res.json();
 }
 
+export async function analyzeUpload(file: File, title: string): Promise<AnalysisResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("title", title);
+
+  const res = await fetch(`${API_URL}/api/analyze/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Server error" }));
+    throw new Error(err.detail || "Upload analysis failed");
+  }
+  return res.json();
+}
+
 export function getAudioUrl(path: string): string {
   return `${API_URL}${path}`;
 }
