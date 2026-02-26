@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "7860:7860"
+    volumes:
+      - hb-data:/tmp/harmony-buzzler
+    environment:
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:7860
+      - HB_DATA_DIR=/tmp/harmony-buzzler
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:7860
+    depends_on:
+      - backend
+
+volumes:
+  hb-data:
