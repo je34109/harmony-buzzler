@@ -18,12 +18,11 @@ def _clean_url(url: str) -> str:
 
 
 def _base_opts() -> dict:
-    """Base yt-dlp options that bypass YouTube bot detection."""
+    """Base yt-dlp options with JS signature solving support."""
     return {
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "extractor_args": {"youtube": {"player_client": ["ios", "web"]}},
     }
 
 
