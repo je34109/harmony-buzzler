@@ -1,13 +1,14 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 yt-dlp>=2024.12.0
-demucs>=4.0.0
-essentia>=2.1b6.dev1034
-madmom>=0.17.dev0
 numpy<2.0
 scipy
-torch>=2.0
-torchaudio
 pydantic>=2.0
 python-multipart
 aiofiles
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0
+torchaudio
+demucs>=4.0.0
+essentia-tensorflow
+madmom @ git+https://github.com/CPJKU/madmom.git
