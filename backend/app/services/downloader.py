@@ -1,11 +1,11 @@
 import re
 import os
 import base64
+import json
+import subprocess
 import logging
 import tempfile
 from pathlib import Path
-
-import yt_dlp
 
 from app.config import AUDIO_DIR, MAX_DURATION_SECONDS
 
@@ -34,19 +34,12 @@ def _clean_url(url: str) -> str:
     return url
 
 
-def _base_opts() -> dict:
-    """Base yt-dlp options with JS signature solving + cookies."""
-    opts: dict = {
-        "quiet": False,
-        "no_warnings": False,
-        "noplaylist": True,
-        "format": "bestaudio/best",
-        # Enable EJS remote components for YouTube JS signature solving
-        "remote_components": {"ejs": "github"},
-    }
+def _base_cmd() -> list[str]:
+    """Base yt-dlp command with cookies and JS runtime."""
+    cmd = ["python", "-m", "yt_dlp", "--no-playlist", "--remote-components", "ejs:github"]
     if _COOKIES_PATH:
-        opts["cookiefile"] = _COOKIES_PATH
-    return opts
+        cmd += ["--cookies", _COOKIES_PATH]
+    return cmd
 
 
 def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
@@ -64,29 +57,21 @@ def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
     if meta.get("duration", 0) > MAX_DURATION_SECONDS:
         raise ValueError(f"Video too long (max {MAX_DURATION_SECONDS}s)")
 
-    # Download as WAV using yt-dlp Python API
-    ydl_opts = {
-        **_base_opts(),
-        "outtmpl": str(AUDIO_DIR / f"{video_id}.%(ext)s"),
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "wav",
-            "preferredquality": "0",
-        }],
-    }
+    # Download as WAV
+    cmd = _base_cmd() + [
+        "-x",
+        "--audio-format", "wav",
+        "--audio-quality", "0",
+        "-o", str(output_path),
+        clean,
+    ]
 
     logger.info(f"Downloading audio: {clean}")
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([clean])
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
-    # yt-dlp may output with different extension before postprocessing
-    if not output_path.exists():
-        # Try finding the output file
-        for ext in ["wav", "webm", "m4a", "mp3"]:
-            candidate = AUDIO_DIR / f"{video_id}.{ext}"
-            if candidate.exists() and ext != "wav":
-                candidate.rename(output_path)
-                break
+    if result.returncode != 0:
+        logger.error(f"yt-dlp stderr: {result.stderr}")
+        raise RuntimeError(f"yt-dlp download failed: {result.stderr[-500:]}")
 
     if not output_path.exists():
         raise FileNotFoundError(f"Download completed but output not found at {output_path}")
@@ -95,12 +80,16 @@ def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
 
 
 def _get_metadata(url: str) -> dict:
-    """Extract video metadata using yt-dlp Python API."""
-    ydl_opts = _base_opts()
+    """Extract video metadata using yt-dlp CLI."""
+    cmd = _base_cmd() + ["--dump-json", "--no-download", url]
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
+    result = subprocess.run(cmd, capture_output=True, text=True)
 
+    if result.returncode != 0:
+        logger.error(f"yt-dlp metadata stderr: {result.stderr}")
+        raise RuntimeError(f"yt-dlp metadata failed: {result.stderr[-500:]}")
+
+    info = json.loads(result.stdout)
     return {
         "title": info.get("title", "Unknown"),
         "duration": info.get("duration", 0),
