@@ -10,8 +10,34 @@ export interface AnalysisResult {
   audio: { vocalsUrl: string };
 }
 
+/** Wrap fetch with friendlier error messages for network failures. */
+async function safeFetch(
+  input: RequestInfo,
+  init?: RequestInit
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(
+      "無法連線到伺服器。伺服器可能正在啟動中（約 30 秒），請稍後再試。"
+    );
+  }
+}
+
+/** Wake up the HF Space backend (it sleeps after inactivity). */
+export async function wakeUpBackend(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/api/health`, {
+      signal: AbortSignal.timeout(60000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function analyzeUrl(url: string): Promise<AnalysisResult> {
-  const res = await fetch(`${API_URL}/api/analyze`, {
+  const res = await safeFetch(`${API_URL}/api/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
@@ -28,7 +54,7 @@ export async function analyzeUpload(file: File, title: string): Promise<Analysis
   formData.append("file", file);
   formData.append("title", title);
 
-  const res = await fetch(`${API_URL}/api/analyze/upload`, {
+  const res = await safeFetch(`${API_URL}/api/analyze/upload`, {
     method: "POST",
     body: formData,
   });
@@ -40,7 +66,7 @@ export async function analyzeUpload(file: File, title: string): Promise<Analysis
 }
 
 export async function downloadYouTubeAudio(url: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/download`, {
+  const res = await safeFetch(`${API_URL}/api/download`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),

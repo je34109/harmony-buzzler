@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { downloadYouTubeAudio } from "@/lib/api";
+import { downloadYouTubeAudio, wakeUpBackend } from "@/lib/api";
 
 const YOUTUBE_REGEX =
   /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]+/;
 
+type Status = "idle" | "waking" | "downloading" | "done" | "error";
+
 export default function YouTubeDownloader() {
   const [url, setUrl] = useState("");
-  const [status, setStatus] = useState<"idle" | "downloading" | "done" | "error">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const handlePaste = useCallback(async () => {
@@ -36,8 +38,18 @@ export default function YouTubeDownloader() {
       }
 
       setError(null);
-      setStatus("downloading");
 
+      // Step 1: Wake up backend if needed
+      setStatus("waking");
+      const alive = await wakeUpBackend();
+      if (!alive) {
+        setError("伺服器無法連線，請稍後再試");
+        setStatus("error");
+        return;
+      }
+
+      // Step 2: Download
+      setStatus("downloading");
       try {
         await downloadYouTubeAudio(trimmed);
         setStatus("done");
@@ -50,7 +62,15 @@ export default function YouTubeDownloader() {
     [url]
   );
 
-  const isLoading = status === "downloading";
+  const isLoading = status === "waking" || status === "downloading";
+
+  const buttonLabel = {
+    idle: "下載 MP3 音檔",
+    waking: "正在連線伺服器...",
+    downloading: "下載中，請稍候...",
+    done: "下載完成！",
+    error: "下載 MP3 音檔",
+  }[status];
 
   return (
     <form onSubmit={handleDownload} className="space-y-3">
@@ -106,17 +126,17 @@ export default function YouTubeDownloader() {
                 : "bg-green-600 hover:bg-green-500 active:scale-[0.98] text-white"
           }`}
       >
-        {isLoading && (
+        {isLoading ? (
           <span className="inline-flex items-center gap-2">
             <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            下載中，請稍候...
+            {buttonLabel}
           </span>
+        ) : (
+          buttonLabel
         )}
-        {status === "done" && "下載完成！"}
-        {(status === "idle" || status === "error") && "下載 MP3 音檔"}
       </button>
 
       {error && (
