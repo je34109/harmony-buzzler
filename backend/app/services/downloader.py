@@ -37,11 +37,12 @@ def _clean_url(url: str) -> str:
 def _base_opts() -> dict:
     """Base yt-dlp options with JS signature solving + cookies."""
     opts: dict = {
-        "quiet": True,
-        "no_warnings": True,
+        "quiet": False,
+        "no_warnings": False,
         "noplaylist": True,
-        # Enable remote EJS components for YouTube signature solving
-        "extractor_args": {"youtube": {"player_client": ["web"]}},
+        "format": "bestaudio/best",
+        # Enable EJS remote components for YouTube JS signature solving
+        "remote_components": {"ejs": "github"},
     }
     if _COOKIES_PATH:
         opts["cookiefile"] = _COOKIES_PATH
@@ -66,7 +67,6 @@ def download_audio(url: str, video_id: str) -> tuple[Path, dict]:
     # Download as WAV using yt-dlp Python API
     ydl_opts = {
         **_base_opts(),
-        "format": "bestaudio/best",
         "outtmpl": str(AUDIO_DIR / f"{video_id}.%(ext)s"),
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
