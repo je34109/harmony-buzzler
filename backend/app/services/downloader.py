@@ -35,8 +35,11 @@ def _clean_url(url: str) -> str:
 
 
 def _base_cmd() -> list[str]:
-    """Base yt-dlp command with cookies and JS runtime."""
+    """Base yt-dlp command with cookies, JS runtime, and optional WARP proxy."""
     cmd = ["python", "-m", "yt_dlp", "--no-playlist", "--remote-components", "ejs:github"]
+    proxy = os.environ.get("ALL_PROXY") or os.environ.get("HTTPS_PROXY")
+    if proxy:
+        cmd += ["--proxy", proxy]
     if _COOKIES_PATH:
         cmd += ["--cookies", _COOKIES_PATH]
     return cmd

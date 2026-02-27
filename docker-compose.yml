@@ -1,6 +1,13 @@
 services:
+  warp:
+    image: ghcr.io/mon-ius/docker-warp-socks:v5
+    restart: unless-stopped
+
   backend:
     build: ./backend
+    platform: linux/amd64
+    depends_on:
+      - warp
     ports:
       - "7860:7860"
     volumes:
@@ -8,6 +15,7 @@ services:
     environment:
       - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:7860
       - HB_DATA_DIR=/tmp/harmony-buzzler
+      - ALL_PROXY=socks5h://warp:9091
 
   frontend:
     build: ./frontend
